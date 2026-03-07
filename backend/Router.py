@@ -1,10 +1,18 @@
 ###################################################################################################################
-#   ROUTER.PY                                                                                                      
-#   THE CENTER OF BACKEND OPERATIONS                                                                               
-#   NOTE THAT THE USER ROTATION SHOULD ALWAYS COME AFTER ERROR CHECKS, NEVER BEFORE, TO PREVENT BROKEN REQUESTS                                     
-#   AND SESSION KEYS                                                                                                 
-#                                                                                                                    
-################################################################################################################### 
+#   ROUTER.PY
+#   THE CENTER OF BACKEND OPERATIONS
+#   NOTE THAT THE USER ROTATION SHOULD ALWAYS COME AFTER ERROR CHECKS, NEVER BEFORE, TO PREVENT BROKEN REQUESTS
+#   AND SESSION KEYS
+#
+###################################################################################################################
+from .models.model_base.events_model import CalendarEvent
+from backend.models.model_base.user_services.services import check_if_a_user_has_logged_in_with_a_role
+from backend.models.model_base.user_services.services import (
+    get_user_by_key,
+    register_user,
+    check_if_a_user_has_logged_in_with_a_role
+)
+from backend.models.model_base.user_services.executive_base import EXECUTIVE_ROLES
 import os
 from flask import Flask, jsonify, redirect, request, Response, stream_with_context
 from functools import wraps
@@ -35,17 +43,21 @@ socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
 try:
     print(Fernet(SECRET_KEY))
 except Exception as e:
-    print(f"An error occured with the secret key {SECRET_KEY}. Apparently it isn't valid(I think). Error: {e}")
+    print(
+        f"An error occured with the secret key {SECRET_KEY}. Apparently it isn't valid(I think). Error: {e}")
     SECRET_KEY = "Xh84PtDmGYycPnlLCyPLBVYBzpUZbPJdA2t2zxJhZKQ=".encode("utf-8")
     print(f"Forced secret key to be {SECRET_KEY}")
 
+
 def hash_text(text):
     return reversible_hasher(text, SECRET_KEY)
+
+
 def dehash_text(text):
     return reversible_dehasher(text, SECRET_KEY)
 
 
-# Start a user session 
+# Start a user session
 # No information required, errors impossible
 @app.route('/api/user/start', methods=[GET, POST])
 def start_user_session():
@@ -58,13 +70,15 @@ def start_user_session():
 
 # Get the total amount of users
 # No information required, errors unlikely
-@app.route('/api/user/getTotalMembers', methods = [GET])
+
+
+@app.route('/api/user/getTotalMembers', methods=[GET])
 def get_total_members():
     return jsonify(get_total_user_count())
 
-   
+
 # Check whether or not a user is registered, no session_key change
-@app.route('/api/user/getIsUserRegistered', methods = [POST])
+@app.route('/api/user/getIsUserRegistered', methods=[POST])
 def get_user_registered():
     data = request.get_json()
     session_key = data.get("session_key")
@@ -83,26 +97,25 @@ def get_user_registered():
     else:
         print("No user; user is not found")
         return jsonify({"error": "Invalid request"}), 400
-    
+
 # Register a user (Update a user session with an an actual name and/or class)
 # Session key, name and class are required information
 # Since the register function already rotates the key, there is no need for us to do so again, but only to send back the hashed session key
+
+
 @ensure_requirements(requirements=["session_key", "name", "school_class"])
 @app.route('/api/user/registerUser', methods=[POST])
 def register_user_as_a_member():
     data = request.get_json()
-    user = get_user_by_key(reversible_dehasher(data.get("session_key"), SECRET_KEY))
+    user = get_user_by_key(reversible_dehasher(
+        data.get("session_key"), SECRET_KEY))
     register_user(user, data.get("name"), data.get("school_class"))
     return jsonify(reversible_hasher(user.session_key, SECRET_KEY))
 
+
 # Register User as an Executive
 # Rotate session key
-from backend.models.model_base.user_services.executive_base import EXECUTIVE_ROLES
-from backend.models.model_base.user_services.services import (
-    get_user_by_key,
-    register_user,
-    check_if_a_user_has_logged_in_with_a_role
-)
+
 
 @ensure_requirements(requirements=["session_key", "name", "school_class", "role_name", "role_code"])
 @app.route('/api/user/registerUser/Executive', methods=['POST'])
@@ -143,7 +156,7 @@ def register_user_as_executive():
     return jsonify({
         "session_key": hash_text(user.session_key),
         "role": role_name,
-        "role_type": user.role_type 
+        "role_type": user.role_type
     })
 
 
@@ -167,7 +180,8 @@ def generateQuizQuestions():
     print("Data has been defined")
     if len(data["pageText"]) > 20_000:
         return jsonify({"error": "Text too long"}), 413
-    user = get_user_by_key(reversible_dehasher(data["session_key"], SECRET_KEY))
+    user = get_user_by_key(reversible_dehasher(
+        data["session_key"], SECRET_KEY))
     if not user:
         return jsonify({"error": "Invalid session key"})
     new_key = user.rotate_key()
@@ -176,6 +190,8 @@ def generateQuizQuestions():
     return jsonify({"result": quiz_json, "session_key": reversible_hasher(user.session_key, SECRET_KEY)})
 
 # Get a user's name, school class, role type and role title
+
+
 @app.route('/api/user/getUserDetails', methods=[POST])
 def get_user_details():
     data = request.get_json()
@@ -195,24 +211,28 @@ def get_user_details():
 
 # Get the hashed value of anything
 # No key rotation
+
+
 @app.route('/api/tools/getHashedValue', methods=[POST])
 def get_hashed_value():
     data = request.get_json()
     if not data.get("value"):
-        return jsonify({"error":"Invalid input"})
+        return jsonify({"error": "Invalid input"})
     return jsonify({"result": hash_text(data.get("value"))})
 
 # Get the dehashed value of anything
 # No key rotation
+
+
 @app.route('/api/tools/getDehashedValue', methods=[POST])
 def get_dehashed_value():
     data = request.get_json()
     if not data.get("value"):
-        return jsonify({"error":"Invalid input"})
-    return jsonify({"result": dehash_text(data.get("value"))})    
+        return jsonify({"error": "Invalid input"})
+    return jsonify({"result": dehash_text(data.get("value"))})
 
 
-# Allow the user to get the SECRET key if they have a valid session key 
+# Allow the user to get the SECRET key if they have a valid session key
 # A session key is not allowed to be used twice (It'll be stored in localStorage)
 # A user (gotten by the user id) cannot call this action on the same day
 # Rotate key
@@ -223,15 +243,15 @@ def getMagicKey():
     date = datetime.now().strftime("%Y%m%d%H%M%S").encode().hex()
     user = get_user_by_key(session_key)
     if not session_key:
-        return jsonify({"error":"Invalid input"})
+        return jsonify({"error": "Invalid input"})
     if LOCAL_STORAGE.getItem(f"{session_key}_magic_key"):
         return jsonify({"error": "Authorization not granted due to used session key"})
     if LOCAL_STORAGE.getItem(f"{user.id}_date_stamp") == date:
-        return jsonify({"error":"Authorization not granted at this particular time. Please try again later."})
+        return jsonify({"error": "Authorization not granted at this particular time. Please try again later."})
     LOCAL_STORAGE.setItem(f"{session_key}_magic_key", {session_key})
     LOCAL_STORAGE.setItem(f"{user.id}_date_stamp", date)
     user.rotate_key()
-    
+
     return jsonify({"session_key": hash_text(user.session_key), "result": hash_text(SECRET_KEY)})
 
 
@@ -242,27 +262,26 @@ def getMagicKey():
 @app.route('/api/user/getUserCodes', methods=[POST])
 def get_user_codes():
     data = request.get_json()
-    position_codes, position_name, session_key = data["passcode"], data["position_name"], data["session_key"]
+    position_codes, position_name, session_key = data[
+        "passcode"], data["position_name"], data["session_key"]
     disabled_roles = []
     available_positions = position_codes.keys()
     if not data:
         return jsonify({"error": "No input given"})
     user = get_user_by_key(data.get(session_key))
     if not user:
-        return jsonify({"error":"Invalid session key"})
+        return jsonify({"error": "Invalid session key"})
     user.rotate_key()
     if data.get("passcode") != hash_text(hash_text(SECRET_KEY)):
-        return jsonify({"error":"Invalid passcode"})
+        return jsonify({"error": "Invalid passcode"})
     if not position_codes[position_name]:
         return jsonify({"error": "Invalid position name"})
     for role in available_positions:
         print(f"Role: {role}")
         if check_if_a_user_has_logged_in_with_a_role(role):
             disabled_roles.append(role)
-    return jsonify({"session_key": hash_text(user.session_key), "position_code": position_codes[position_name], "diabled_roles": disabled_roles})    
+    return jsonify({"session_key": hash_text(user.session_key), "position_code": position_codes[position_name], "diabled_roles": disabled_roles})
 
-from backend.models.model_base.user_services.executive_base import EXECUTIVE_ROLES
-from backend.models.model_base.user_services.services import check_if_a_user_has_logged_in_with_a_role
 
 @app.route('/api/roles/status', methods=['GET'])
 def get_roles_status():
@@ -278,8 +297,6 @@ def get_roles_status():
     return jsonify(roles)
 
 
-from .models.model_base.events_model import CalendarEvent
-
 @app.route('/api/database/events', methods=['POST'])
 @session_key_required
 def event_operations():
@@ -290,7 +307,7 @@ def event_operations():
     if not user:
         return AuthenticationError("Invalid session").to_response()
 
-    print(f"Operation: { op }")
+    print(f"Operation: {op}")
     if op == "read":
         events = CalendarEvent.query.order_by(CalendarEvent.date).all()
         return jsonify([e.to_dict() for e in events])
@@ -340,9 +357,12 @@ def ensure_global_room():
 # -------------------------------
 # 2️⃣ API routes
 # -------------------------------
+
+
 @app.route("/api/chat/getUsers")
 def get_users():
     return jsonify(get_all_contacts())
+
 
 @app.route("/api/chat/getRoom/<room_name>")
 def get_room(room_name):
@@ -350,6 +370,7 @@ def get_room(room_name):
     if not room:
         return jsonify({"error": "Room not found"}), 404
     return jsonify({"room_id": room.id})
+
 
 @app.route("/api/chat/getMessages/<int:room_id>")
 def get_messages(room_id):
@@ -374,6 +395,7 @@ def get_messages(room_id):
         for m in messages
     ])
 
+
 @app.route("/api/chat/send", methods=["POST"])
 def send_message_api():
     data = request.get_json()
@@ -393,13 +415,17 @@ def send_message_api():
 # -------------------------------
 # 3️⃣ SocketIO events
 # -------------------------------
+
+
 @socketio.on("connect")
 def handle_connect():
     print("Client connected")
 
+
 @socketio.on("disconnect")
 def handle_disconnect():
     print("Client disconnected")
+
 
 @socketio.on("join")
 def handle_join(data):
@@ -424,6 +450,7 @@ def handle_join(data):
         "user_id": user.id,
         "username": user.name
     }, broadcast=True)
+
 
 @socketio.on("send_message")
 def handle_send_message(data):
@@ -459,6 +486,7 @@ def handle_send_message(data):
         "room": room_name
     }, room=room_name)
 
+
 @socketio.on("typing")
 def handle_typing(data):
     session_key = data.get("session_key")
@@ -475,10 +503,12 @@ def handle_typing(data):
         "typing": state
     }, room=room_name, include_self=False)
 
+
 @socketio.on("leave")
 def handle_leave(data):
     room_name = data.get("room") or "global"
     leave_room(room_name)
+
 
 @app.route("/api/chat/getPrivateRoom/<int:other_user_id>", methods=["POST"])
 def get_private_room(other_user_id):
@@ -514,7 +544,7 @@ def get_private_room(other_user_id):
 genai.configure(api_key=api)
 model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
- 
+
 # -----------------------------------
 # Helpers
 # -----------------------------------
@@ -578,8 +608,6 @@ if __name__ == "__main__":
     socketio.run(app, debug=True)
 
 # 2, 0, 3, 3, or 3 6
-
-
 
 
 # A sniff of a lie in college admissions and you're GONE. Descript HOW you did what you did(but subtly)
