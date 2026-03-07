@@ -1,0 +1,432 @@
+Please upgrade my notification logic to:
+1. Slide down farther
+2. Stop prompting the user after being dismissed 
+3. Have a Join Us button leading to the /register route
+
+base.css:
+/* color palette from <https://github.com/vuejs/theme> */
+* {
+  animation: Appear;
+  animation-delay: 0ms;
+  animation-duration: 5s;
+  animation-iteration-count: 1;
+}
+
+@keyframes Appear {
+  from {
+    opacity: 0;
+  } 
+  to {
+    opacity: 1;
+  }
+}
+
+:root {
+  --vt-c-white: #ffffff;
+  --vt-c-white-soft: #f8f8f8;
+  --vt-c-white-mute: #f2f2f2;
+
+  --vt-c-black: #181818;
+  --vt-c-black-soft: #222222;
+  --vt-c-black-mute: #282828;
+
+  --vt-c-indigo: #2c3e50;
+
+  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
+  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
+  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
+  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+
+  --vt-c-text-light-1: var(--vt-c-indigo);
+  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
+  --vt-c-text-dark-1: var(--vt-c-white);
+  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+}
+
+/* semantic color variables for this project */
+:root {
+  --color-background: var(--vt-c-white);
+  --color-background-soft: var(--vt-c-white-soft);
+  --color-background-mute: var(--vt-c-white-mute);
+
+  --color-border: var(--vt-c-divider-light-2);
+  --color-border-hover: var(--vt-c-divider-light-1);
+
+  --color-heading: var(--vt-c-text-light-1);
+  --color-text: var(--vt-c-text-light-1);
+
+  --section-gap: 160px;
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+  --rc-red: #e10600;
+  --rc-red-soft: rgba(225, 6, 0, 0.15);
+
+  --color-background: #f6f7f9;
+  --color-surface: rgba(255, 255, 255, 0.75);
+  --color-border: rgba(0, 0, 0, 0.08);
+
+  --color-heading: #111;
+  --color-text: #1a1a1a;
+
+  --glass-blur: blur(16px);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+}
+  }
+
+@media(mode: red-cross) {
+  :root {
+    --background-header: rgba(250, 0, 0, 1);
+    --background-body: rgba(255,255,255,1);
+    --text-size: 16px;
+    --text-color: var(--vt-c-black);
+    --header-size: 40px;
+    --button-height: 20px;
+    --button-width: 40px;
+    --button-border-radius: 5px;
+
+
+  }  
+}
+button:hover {
+  opacity: 0.5;
+  animation-name: Size;
+  animation-duration: 4s;
+  animation-iteration-count: infinite;
+}
+@keyframes Size {
+  0% {
+    scale: 1.0;
+  }
+  25% {
+    scale: 0.5;
+  }
+  50% {
+    scale: 1.0;
+  }
+  75% {
+    scale: 2.0;
+  }
+  100% {
+    scale: 1.0;
+  }
+}
+button:active {
+  scale: 1.1;
+  opacity: 0.7;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  font-weight: normal;
+}
+
+body {
+  min-height: 100vh;
+  color: black;
+  background: white;
+  transition:
+    color 0.5s,
+    background-color 0.5s;
+  line-height: 1.6;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  font-size: 15px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+div, nav {
+  border-radius: 5px;
+}
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+
+  height: 72px;
+  backdrop-filter: var(--glass-blur);
+  background: rgba(255, 255, 255, 0.7);
+
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+.navbar:hover {
+  animation-name: Crosser;
+  animation-duration: 5s;
+  cursor: pointer;
+
+}
+@keyframes Crosser {
+  0% {
+    background: white;
+  }
+  50% {
+    background: rgba(200, 255, 255, 0.8)
+  }
+  100% {
+    background: white;
+  }
+}
+.welcomeText {
+  padding: 10px;
+  position: center;
+  left: 100px;
+}
+.welcomeContent {
+  left: 20px;
+  right: 120px;
+}
+.slide-down-enter-from {
+  transform: translate(-50%, -100%);
+  opacity: 0;
+}
+
+.slide-down-enter-to {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.slide-down-leave-from {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.slide-down-leave-to {
+  transform: translate(-50%, -100%);
+  opacity: 0;
+}
+
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.35s ease;
+}
+.notification {
+  border-top: 4px solid var(--rc-red);
+}
+TopNotification.vue:
+<script setup>
+import { defineEmits, defineProps } from 'vue'
+
+const props = defineProps({
+  message: String,
+  actions: {
+    type: Array,
+    default: () => []
+  }
+})
+
+const emit = defineEmits(['close'])
+
+function handleAction(action) {
+  if (action.onClick) {
+    action.onClick()
+  }
+  emit('close')
+}
+</script>
+
+<template>
+  <transition name="slide-down">
+    <div class="notification" v-if="message">
+      <span class="message">{{ message }}</span>
+
+      <div class="actions">
+        <button
+          v-for="(action, i) in actions"
+          :key="i"
+          @click="handleAction(action)"
+        >
+          {{ action.label }}
+        </button>
+
+        <button class="close" @click="$emit('close')">✕</button>
+      </div>
+    </div>
+  </transition>
+</template>
+
+<style scoped>
+.notification {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(900px, 95%);
+  z-index: 1000;
+
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+  padding: 1rem 1.25rem;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.message {
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.close {
+  background: transparent;
+  font-size: 1.1rem;
+}
+</style>
+
+
+App.vue: 
+<script setup>
+import {ref} from 'vue';
+import { RouterLink, RouterView } from 'vue-router';
+import { useRouter } from 'vue-router';
+import TopNotification from './components/TopNotification.vue';
+import { useUserStore } from './stores/counter';
+const notification = ref(null);
+const isRegistered = ref(useUserStore().isRegistered);
+const router = useRouter();
+function registrationNotification() {
+  notification.value = {
+    message: 'It seems you have not yet joined the community',
+    actions: [
+      {
+        label: 'Join Us',
+        onClick: () => {
+          console.log('Join Us clicked, going to sign in page');
+          router.push('/register');
+        }
+      },
+      {
+        label: 'Dismiss',
+        onClick: () => {
+          console.log('Dismiss clicked')
+        }
+      }
+    ]
+  }
+}
+setTimeout(() => {
+  notification.value = null;
+}, 10000);
+</script>
+
+<template>
+  <div class="bg-white text-black top-0 h-full w-full" @mouseenter="registrationNotification">
+    <header class="w-full h-full">
+      <div class="w-full h-full">
+        <nav class="flex w-full align-center justify-center text-center text-2xl top-0 h-32 bg-red-500 text-white border-r-2 navbar">
+          <button><RouterLink to="/">Home</RouterLink></button>
+          <button><RouterLink to="/about">About</RouterLink></button>
+          <button><RouterLink to="/members">Members & Events</RouterLink></button>
+          <button><RouterLink to="/learn">Courses & Lessons</RouterLink></button>
+          <button><RouterLink to="/chatroom">Chatroom</RouterLink></button>
+          <button v-if="!isRegistered"><RouterLink to="/register">Register</RouterLink></button>
+        </nav>
+      </div>
+    </header>
+  <TopNotification v-if="notification"
+  :message="notification.message"
+  :action="notification.actions"
+  @close="notification = null"/>
+  <RouterView class="dashboardContent"/>
+  </div>
+</template>
+
+<style scoped>
+header {
+  line-height: 1.5;
+  max-height: 100vh;
+}
+
+.logo {
+  display: block;
+  margin: 0 auto 2rem;
+}
+
+nav {
+  width: 100%;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+nav a.router-link-exact-active {
+  color: var(--color-text);
+}
+
+nav a.router-link-exact-active:hover {
+  background-color: transparent;
+}
+
+nav a {
+  display: inline-block;
+  padding: 0 1rem;
+  border-left: 1px solid var(--color-border);
+}
+
+nav a:first-of-type {
+  border: 0;
+}
+
+@media (min-width: 1024px) {
+  header {
+    display: flex;
+    place-items: center;
+    padding-right: calc(var(--section-gap) / 2);
+  }
+
+  .logo {
+    margin: 0 2rem 0 0;
+  }
+
+  header .wrapper {
+    display: flex;
+    place-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  nav {
+    text-align: left;
+    margin-left: -1rem;
+    font-size: 1rem;
+
+    padding: 1rem 0;
+    margin-top: 1rem;
+  }
+}
+</style>

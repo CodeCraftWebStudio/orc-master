@@ -1,0 +1,1228 @@
+I need help with my Registration logic in my app
+Problem No 1: Disabling roles that have been taken
+Problem No 2: Getting positions from the backend
+Problem No 3: Controlling API requests so they're not just random 
+Problem No 4: Creating a user icon with the first letter of their name on it and allowing them to change it (adding a small tooltip to the right on hover allowing them to upload images on the web or from their device as their profile picture and saving that url in localStorage)
+
+Reference material:
+counter.js:
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+ 
+/* =========================
+   Constants
+========================= */
+const BASE_URL = 'http://localhost:5000'
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
+const CREDENTIALS = 'include'
+const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE']
+
+/* =========================
+   Base URL Store
+========================= */
+export const useBaseURL = defineStore('baseURL', () => {
+  const baseURL = BASE_URL
+
+  function getBaseURL() {
+    return baseURL
+  }
+
+  return { baseURL, getBaseURL }
+})
+
+/* =========================
+   User Store
+========================= */
+export const useUserStore = defineStore('user', () => {
+  const isRegistered = ref(false)
+  const user = ref(null)
+
+  async function registerUser(userName, userClass) {
+    const url = BASE_URL + '/api/user/registerUser'
+
+    const body = {
+      name: userName,
+      school_class: userClass
+    }
+
+    const config = {
+      method: 'POST',
+      credentials: CREDENTIALS,
+      headers: JSON_HEADERS,
+      body: JSON.stringify(body)
+    }
+
+    const response = await fetch(url, config)
+    const data = await response.json()
+
+    user.value = data
+    isRegistered.value = !!localStorage.getItem('key')
+  }
+  async function getUserIsRegistered(session_key) {
+    const REGISTERED_URL = BASE_URL + '/api/user/getIsUserRegistered';
+    const registration_body = {
+      session_key: session_key,
+    }
+    const registration_configuration = {
+      method: 'POST',
+      credentials: CREDENTIALS,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(registration_body)
+    }
+  
+    const registration_response = await fetch(REGISTERED_URL, registration_configuration);
+    const registration_result = await registration_response.json();
+    return  registration_result.result || registration_result;
+  }
+  async function getUserDetails(session_key) {
+    const DETAILS_URL = BASE_URL + '/api/user/getUserDetails';
+    const detailsBody = {
+      session_key: session_key
+    }
+    const detailsConfig = {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      credentials: CREDENTIALS,
+      body: JSON.stringify(detailsBody),
+    }
+    const detailsResponse = await fetch(DETAILS_URL, detailsConfig);
+    const detailsResult = await detailsResponse.json();
+    return detailsResult;
+  }
+
+  return { isRegistered, user, registerUser, getUserIsRegistered, getUserDetails }
+})
+
+/* =========================
+   API Store
+========================= */
+export const useApiStore = defineStore('api', () => {
+  const sessionKey = ref(localStorage.getItem('key'))
+
+  function setSessionKey(key) {
+    sessionKey.value = key
+    localStorage.setItem('key', key)
+  }
+
+  async function apiFetch(route, method = 'GET', body = null) {
+    const safeMethod = ALLOWED_METHODS.includes(method)
+      ? method
+      : 'GET'
+
+    const url = BASE_URL + route
+
+    const config = {
+      method: safeMethod,
+      credentials: CREDENTIALS,
+      headers: JSON_HEADERS
+    }
+
+    if (body || method == 'POST') {
+      if (method == 'POST' && !body.session_key) {
+        body.session_key = localStorage.getItem('key') || false;
+      }
+      config.body = JSON.stringify(body)
+    }
+
+    const response = await fetch(url, config)
+
+    if (!response.ok) {
+      throw new Error(`API error ${response.status}`)
+    }
+    if (response.error) {
+      localStorage.setItem('isErrorPresent', true);
+      localStorage.setItem('errorMsg', response.error);
+    }
+    if (response.session_key) {
+      sessionKey.value = response.session_key;
+      localStorage.setItem('key', response.session_key)
+    }
+
+    return await response.json()
+  }
+
+  return {
+    sessionKey,
+    setSessionKey,
+    apiFetch
+  }
+})
+Executive.vue:
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useApiStore } from '@/stores/counter'
+import { positions, GetCodes } from '@/stores/positions'
+
+const POSITIONS = positions;
+const router = useRouter()
+const api = useApiStore();
+const name = ref('')
+const position = ref('');
+const position_code = ref('');
+const level = ref('')
+const section = ref('')
+const isSubmitting = ref(false) 
+const error = ref('')
+// const position_names = {   
+//     president: 'President',
+//     vicePresident: 'Vice President',
+//     commandant: 'Parade Commandant',
+//     assistantCommandant: 'Assistant Commandant',
+//     secretary: 'General Secreatary',
+//     assistantSecretary: 'Assistant General Secretary',
+//     socialDirector: 'Social Director',
+//     technicalDirector: 'Technical Director',
+//     assistantTechnicalDirector: 'Assistant Technical Director',
+//     assistantSocialDirector: 'Assistant Social Director',
+//     pro_1: 'Public Relations Officer 1',
+//     pro_2: 'Public Relations Officer 2',
+//     pro_3: 'Public Relations Officer 3',
+//     pro_4: 'Public Relations Officer 4',
+//     pro_5: 'Public Relations Officer 5',
+//     outgoneAdvisor1: 'Intemediary to Seniors 1',
+//     outgoneAdvisor2: 'Intemediary to Seniors 2',
+// }
+// const position_mapper = {
+//     president: 'A1K9-M3T6-Q2V8',
+//     vicePresident: 'D4F7-L1P9-C8J2',
+//     commandant: 'M5B2-H8N1-K3Q7',
+//     assistantCommandant: 'E3X7-V1Q4-K6J8',
+//     secretary: 'R6P4-T2J9-L1C8',
+//     assistantSecretary: 'K5J1-P7M4-L8V2',
+//     socialDirector: 'V9K1-Q3M7-P5B2',
+//     technicalDirector: 'C2H6-F9L4-N3V8',
+//     assistantTechnicalDirector: 'J7M1-R8T5-K2P6',
+//     assistantSocialDirector: 'L4N3-B5Q9-H1V7',
+//     pro_1: 'P8C2-K6M4-T1J9',
+//     pro_2: 'N8B4-J6M2-V3P5',
+//     pro_3: 'L3V7-H5C2-K9T1',
+//     pro_4: 'J1F6-P9R3-Q4M8',
+//     pro_5: 'T4M8-L2K5-B7F1',
+//     outgoneAdvisor1: 'V2C9-H6Q3-N1R7',
+//     outgoneAdvisor2: 'R9P2-M4L1-T5C3',
+// }
+const levels = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3', 'Outgone']
+const sections = ['A', 'B', 'C', 'D', 'E']
+
+const isOutgone = computed(() => level.value === 'Outgone')
+
+watch(isOutgone, (val) => {
+  if (val) section.value = ''
+})
+
+const finalClass = computed(() => {
+  if (isOutgone.value) return 'Outgone'
+  if (!level.value || !section.value) return ''
+  return `${level.value}${section.value}`
+})
+
+const isValid = computed(() => {
+  if (name.value.trim().length < 2) return false
+  if (!level.value) return false
+  if (!isOutgone.value && !section.value) return false
+  if (!position.value) return false
+  if (!position_code.value) return false
+  return true
+})
+
+
+async function submitRegistration() {
+  if (!isValid.value) {
+    error.value = 'Please complete all required fields.'
+    return
+  }
+
+  isSubmitting.value = true
+  error.value = ''
+
+  try {
+    /**
+     * 🔌 BACKEND CALL GOES HERE
+     * payload:
+     * {
+     *   name: name.value,
+     *   class: finalClass.value
+     *   session_key: localStorage.getItem('key')
+     * }
+     */
+    // if (position_code !== position_mapper[position]) {
+    //     alert("Invalid code for specified position")
+    //     return;
+    // }
+      for (let item of POSITIONS) {
+        if (position == item.name) {
+          if (position_code  !== item.code) {
+            localStorage.setItem('isErrorPresent', true);
+            localStorage.setItem('errorMsg', 'Invalid code for specified position. Check your code or try again later');
+              return;
+          }
+        }
+      }
+
+    localStorage.setItem('key', (await api).apiFetch('/user/registerUser/Executive', 'POST', {name: name.value, school_class: finalClass.value, session_key: localStorage.getItem('key'), role_name: position}))
+    console.log(`Registration key: ${localStorage.getItem('key')}`)
+    router.push('/')
+  } catch (e) {
+    error.value = 'Something went wrong. Please try again.'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+</script>
+
+
+<template>
+  <div class="min-h-screen flex items-center justify-center bg-white px-4 w-full">
+    <div class="w-full max-w-md bg-white shadow-lg rounded-2xl p-6 border h-full content">
+
+      <h1 class=" flex text-2xl font-bold text-red-600 mb-2 items-center justify-center">
+        Join ORC Web as an Executive
+      </h1>
+
+      <p class="flex text-sm text-gray-600 mb-6 items-center justify-center">
+        Tell us a bit about yourself. No passwords, no emails.
+      </p>
+      <div class="space"></div>
+      <div class="space"></div>
+      <form @submit.prevent="submitRegistration" class="space-y-4">
+
+        <!-- Name -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            Full Name
+          </label>
+          <input
+            v-model="name"
+            type="text"
+            placeholder="e.g. Alex Johnson"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+          />
+        </div>
+        <div class="space"></div>
+        <!-- Class -->
+
+<!-- Level -->
+<div>
+  <label class="block text-sm font-medium mb-1">
+    Level
+  </label>
+  <select
+    v-model="level"
+    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+  >
+    <option value="" disabled>Select level</option>
+    <option v-for="l in levels" :key="l" :value="l">
+      {{ l }}
+    </option>
+  </select>
+</div>
+    <div class="space"></div>
+<!-- Class Section -->
+    <div>
+    <label class="block text-sm font-medium mb-1">
+        Class
+    </label>
+    <select
+        v-model="section"
+        :disabled="isOutgone"
+        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none
+            disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+    >
+        <option value="" disabled>
+        {{ isOutgone ? 'Not applicable' : 'Select class' }}
+        </option>
+        <option v-for="s in sections" :key="s" :value="s">
+        {{ s }}
+        </option>
+    </select>
+    </div> 
+    <div class="space"></div>
+    <div>
+    <label class="block text-sm font-medium mb-1">
+        Position
+    </label>
+    <select
+        v-model="position"
+        :disabled="isOutgone"
+        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none
+            disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+    >
+        <option value="" disabled>
+        {{ isOutgone ? 'Not applicable' : 'Select position' }}
+        </option>
+        <option v-for="(s, key) in POSITIONS" :key="key" :value="key">
+        {{ s.name }}
+        </option>
+    </select>
+    </div>
+    <div class="space"></div>
+    <label class="block text-sm font-medium mb-1">
+        Position Code
+    </label>
+    <input
+            required
+            v-model="position_code"
+            type="text"
+            placeholder="Enter the code for your position"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+    />
+    <div class="space"></div>
+        <!-- Error -->
+        <p v-if="error" class="text-sm text-red-600">
+          {{ error }}
+        </p>
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          :disabled="!isValid || isSubmitting"
+          class="w-full py-2 rounded-lg font-semibold transition
+                 bg-red-600 text-white
+                 disabled:opacity-50 disabled:cursor-not-allowed
+                 hover:bg-red-700"
+        >
+          {{ isSubmitting ? 'Joining...' : 'Join' }}
+        </button>
+        <div class="space"></div>
+      </form>
+    </div>
+  </div>
+</template>
+
+
+<style scoped>
+    .content {
+        padding: 20px;
+    }
+    .space {
+      padding: 5px;
+    }
+</style>
+Register.vue:
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useApiStore } from '@/stores/counter'
+const router = useRouter()
+const api = useApiStore();
+const name = ref('')
+
+const level = ref('')
+const section = ref('')
+const isSubmitting = ref(false)
+const error = ref('')
+
+const levels = ['JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3', 'Outgone']
+const sections = ['A', 'B', 'C', 'D', 'E']
+
+const isOutgone = computed(() => level.value === 'Outgone')
+
+watch(isOutgone, (val) => {
+  if (val) section.value = ''
+})
+
+const finalClass = computed(() => {
+  if (isOutgone.value) return 'Outgone'
+  if (!level.value || !section.value) return ''
+  return `${level.value}${section.value}`
+})
+
+const isValid = computed(() => {
+  if (name.value.trim().length < 2) return false
+  if (!level.value) return false
+  if (!isOutgone.value && !section.value) return false
+  return true
+})
+
+async function submitRegistration() {
+  if (!isValid.value) {
+    error.value = 'Please complete all required fields.'
+    return
+  }
+
+  isSubmitting.value = true
+  error.value = ''
+
+  try {
+    /**
+     * 🔌 BACKEND CALL GOES HERE
+     * payload:
+     * {
+     *   name: name.value,
+     *   class: finalClass.value
+     *   session_key: localStorage.getItem('key')
+     * }
+     */
+    localStorage.setItem('key', (await api).apiFetch('/user/registerUser', 'POST', {name: name.value, school_class: finalClass.value, session_key: localStorage.getItem('key')}))
+    console.log(`Registration key: ${localStorage.getItem('key')}`)
+    router.push('/')
+  } catch (e) {
+    error.value = 'Something went wrong. Please try again.'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+</script>
+
+
+<template>
+  <div class="min-h-screen flex items-center justify-center bg-white px-4 w-full">
+    <div class="w-full max-w-md bg-white shadow-lg rounded-2xl p-6 border h-full content">
+
+      <h1 class=" flex text-2xl font-bold text-red-600 mb-2 items-center justify-center">
+        Join ORC Web
+      </h1>
+
+      <p class="flex text-sm text-gray-600 mb-6 items-center justify-center">
+        Tell us a bit about yourself. No passwords, no emails.
+      </p>
+      <div class="space"></div>
+      <div class="space"></div>
+      <form @submit.prevent="submitRegistration" class="space-y-4">
+
+        <!-- Name -->
+        <div>
+          <label class="block text-sm font-medium mb-1">
+            Full Name
+          </label>
+          <input
+            v-model="name"
+            type="text"
+            placeholder="e.g. Alex Johnson"
+            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+          />
+        </div>
+        <div class="space"></div>
+        <!-- Class -->
+
+<!-- Level -->
+<div>
+  <label class="block text-sm font-medium mb-1">
+    Level
+  </label>
+  <select
+    v-model="level"
+    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+  >
+    <option value="" disabled>Select level</option>
+    <option v-for="l in levels" :key="l" :value="l">
+      {{ l }}
+    </option>
+  </select>
+</div>
+<div class="space"></div>
+<!-- Class Section -->
+    <div>
+    <label class="block text-sm font-medium mb-1">
+        Class
+    </label>
+    <select
+        v-model="section"
+        :disabled="isOutgone"
+        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 outline-none
+            disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+    >
+        <option value="" disabled>
+        {{ isOutgone ? 'Not applicable' : 'Select class' }}
+        </option>
+        <option v-for="s in sections" :key="s" :value="s">
+        {{ s }}
+        </option>
+    </select>
+    </div> 
+<div class="space"></div>
+
+        <!-- Error -->
+        <p v-if="error" class="text-sm text-red-600">
+          {{ error }}
+        </p>
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          :disabled="!isValid || isSubmitting"
+          class="w-full py-2 rounded-lg font-semibold transition
+                 bg-red-600 text-white
+                 disabled:opacity-50 disabled:cursor-not-allowed
+                 hover:bg-red-700"
+        >
+          {{ isSubmitting ? 'Joining...' : 'Join' }}
+        </button>
+        <div class="space"></div>
+        <button class="w-full py-2 rounded-lg font-semibold transition bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700">
+          <RouterLink to="/executive">Sign Up as an Executive</RouterLink>
+        </button>
+
+      </form>
+
+      <p class="text-xs text-gray-500 mt-6 text-center">
+        You can update your role later. The President assigns positions.
+      </p>
+    </div>
+  </div>
+</template>
+
+
+<style scoped>
+    .content {
+        padding: 20px;
+    }
+    .space {
+      padding: 5px;
+    }
+</style>
+Router.py:
+###################################################################################################################
+#   ROUTER.PY                                                                                                      
+#   THE CENTER OF BACKEND OPERATIONS                                                                               
+#   NOTE THAT THE USER ROTATION SHOULD ALWAYS COME AFTER ERROR CHECKS, NEVER BEFORE, TO PREVENT BROKEN REQUESTS                                     
+#   AND SESSION KEYS                                                                                                 
+#                                                                                                                    
+################################################################################################################### 
+import os
+from flask import Flask, jsonify, redirect, request
+from .Database import app
+from .local_storage import localStorage
+from cryptography.fernet import Fernet
+from backend.models.model_base.user_services.services import create_anonymous_user, get_user_by_key, check_user_registered_from_user, check_user_registered_from_session_key, check_if_a_user_has_logged_in_with_a_role
+from backend.models.security import generate_secret_key, reversible_dehasher, reversible_hasher
+from backend.models.model_base.user_services.services import get_total_user_count, create_db, RoleType
+from backend.models.model_base.user_services.executive_base import position_types, position_codes
+from backend.learn.config import generate_quiz
+from datetime import datetime
+
+
+LOCAL_STORAGE = localStorage()
+GET, POST, UPDATE, DELETE = "GET", "POST", "UPDATE", "DELETE"
+SECRET_KEY = LOCAL_STORAGE.getItem('ORC')
+
+try:
+    print(Fernet(SECRET_KEY))
+except Exception as e:
+    print(f"An error occured with the secret key {SECRET_KEY}. Apparently it isn''t valid(I think). Error: {e}")
+    SECRET_KEY = "Xh84PtDmGYycPnlLCyPLBVYBzpUZbPJdA2t2zxJhZKQ=".encode("utf-8")
+    print(f"Forced secret key to be {SECRET_KEY}")
+
+def hash_text(text):
+    return reversible_hasher(text, SECRET_KEY)
+def dehash_text(text):
+    return reversible_dehasher(text, SECRET_KEY)
+# Start a user session 
+# No information required, errors impossible
+@app.route('/api/user/start', methods=[GET, POST])
+def start_user_session():
+    user = create_anonymous_user()
+    if not user:
+        return jsonify({"error": "user not found"}), 404
+    elif not user.session_key:
+        return jsonify({"error": "session key invalid or not found"}), 404
+    return jsonify(reversible_hasher(user.session_key, SECRET_KEY))
+
+# Get the total amount of users
+# No information required, errors unlikely
+@app.route('/api/user/getTotalMembers', methods = [GET])
+def get_total_members():
+    return jsonify(get_total_user_count())
+
+   
+# Check whether or not a user is registered, no session_key change
+@app.route('/api/user/getIsUserRegistered', methods = [POST])
+def get_user_registered():
+    data = request.get_json()
+    if not data.get("session_key"):
+        print("No session key")
+        return jsonify({"error": "session key not given"})
+    user = get_user_by_key(data.get("session_key"))
+    if user:
+        print(data.get("session_key"))
+        print("User is found")
+        if user.name != "Anonymous" or user.name != "Unassigned" and user.role_type != RoleType.GUEST:
+            print(f"Username: {user.name} Roletype: {user.role_type}")
+            return jsonify({"result": True})
+        else:
+            return jsonify({"result":  False})
+    else:
+        print("No user or no session key")
+    try:
+        return jsonify(check_user_registered_from_session_key(get_user_by_key(dehash_text(data.get("session_key"))), SECRET_KEY))
+    except Exception as e:
+        print(f"An error has occured: {e}")
+        jsonify(check_user_registered_from_session_key(get_user_by_key(data.get("session_key")), SECRET_KEY))
+
+# Register a user (Update a user session with an an actual name and/or class)
+# Session key, name and class are required information
+# Since the register function already rotates the key, there is no need for us to do so again, but only to send back the hashed session key
+@app.route('/api/user/registerUser', methods=[POST])
+def register_user():
+    data = request.get_json()
+    REQUIREMENTS = ["session_key", "name", "school_class"]
+    for item in REQUIREMENTS:
+        if not data.get(item):
+            return jsonify({"error": f"{item} not given"})
+    user = get_user_by_key(reversible_dehasher(data.get("session_key"), SECRET_KEY))
+    register_user(user, data.get("name"), data.get("school_class"))
+    return jsonify(reversible_hasher(user.session_key, SECRET_KEY))
+
+# Register User as an Executive
+# Rotate session key
+@app.route('/api/user/registerUser/Executive', methods=[POST])
+def register_user_as_executive():
+    data = request.get_json()
+    REQUIREMENTS = ["session_key", "name", "school_class"]
+    for item in REQUIREMENTS:
+        if not data.get(item):
+            return jsonify({"error": f"{item} not given"})
+    user = get_user_by_key(reversible_dehasher(data.get("session_key"), SECRET_KEY))
+    if not user:
+        return jsonify({"error": "Invalid session key"})
+    register_user(user, data.get("name"), data.get("school_class"))
+    return jsonify(reversible_hasher(user.session_key, SECRET_KEY))
+
+# Generate a quiz
+# Rotate session key
+@app.route('/api/ai/generateQuizQuestions', methods=[POST])
+def generateQuizQuestions():
+    data = request.get_json(force=True)
+    if not data:
+        return jsonify({"error": "No JSON body provided"})
+    page_text = data.get("pageText")
+    difficulty = data.get("difficulty")
+    session_key = data.get("session_key")
+
+    if not page_text or not difficulty or not session_key:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    if len(page_text) > 20_000:
+        return jsonify({"error": "Text too long"}), 413
+
+    print("Data has been defined")
+    if len(data["pageText"]) > 20_000:
+        return jsonify({"error": "Text too long"}), 413
+    user = get_user_by_key(reversible_dehasher(data["session_key"], SECRET_KEY))
+    if not user:
+        return jsonify({"error": "Invalid session key"})
+    new_key = user.rotate_key()
+    result = generate_quiz(data["difficulty"], data["pageText"])
+    quiz_json = result.parsed
+    return jsonify({"result": quiz_json, "session_key": reversible_hasher(user.session_key, SECRET_KEY)})
+
+# Get a user's name, school class, role type and role title
+# Rotate key  
+@app.route('/api/user/getUserDetails', methods=[POST])
+def get_user_details():
+    data = request.get_json()
+    user = get_user_by_key(dehash_text(data.get("session_key")))
+    if not user:
+        return jsonify({"error" : "Invalid session key"})
+    user.rotate_key()
+    result_object = {'session_key': hash_text(user.session_key), 'name': user.name, 'school_class': user.school_class, 'role_type': user.role_type, 'role_title': user.role_title}
+
+# Get the hashed value of anything
+# No key rotation
+@app.route('/api/tools/getHashedValue', methods=[POST])
+def get_hashed_value():
+    data = request.get_json()
+    if not data.get("value"):
+        return jsonify({"error":"Invalid input"})
+    return jsonify({"result": hash_text(data.get("value"))})
+
+# Get the dehashed value of anything
+# No key rotation
+@app.route('/api/tools/getDehashedValue', methods=[POST])
+def get_dehashed_value():
+    data = request.get_json()
+    if not data.get("value"):
+        return jsonify({"error":"Invalid input"})
+    return jsonify({"result": dehash_text(data.get("value"))})    
+
+
+# Allow the user to get the SECRET key if they have a valid session key 
+# A session key is not allowed to be used twice (It'll be stored in localStorage)
+# A user (gotten by the user id) cannot call this action on the same day
+# Rotate key
+@app.route('/api/user/getMagicKey', methods=[POST])
+def getMagicKey():
+    data = request.get_json()
+    session_key = dehash_text(data.get('session_key'))
+    date = datetime.now().strftime("%Y%m%d%H%M%S").encode().hex()
+    user = get_user_by_key(session_key)
+    if not session_key:
+        return jsonify({"error":"Invalid input"})
+    if LOCAL_STORAGE.getItem(f"{session_key}_magic_key"):
+        return jsonify({"error": "Authorization not granted due to used session key"})
+    if LOCAL_STORAGE.getItem(f"{user.id}_date_stamp") == date:
+        return jsonify({"error":"Authorization not granted at this particular time. Please try again later."})
+    LOCAL_STORAGE.setItem(f"{session_key}_magic_key", {session_key})
+    LOCAL_STORAGE.setItem(f"{user.id}_date_stamp", date)
+    user.rotate_key()
+    
+    return jsonify({"session_key": hash_text(user.session_key), "result": hash_text(SECRET_KEY)})
+
+
+# Has to be dehashed twice since user would first get the hashed SECRET KEY then hash it again
+# Get the codes sent to the frontend
+# Rotate the keys
+@app.route('/api/user/getUserCodes', methods=[POST])
+def get_user_codes():
+    data = request.get_json()
+    REQUIREMENTS = ["passcode", "session_key", "position_name"]
+    disabled_roles = []
+    available_positions = position_codes.keys()
+    if not data:
+        return jsonify({"error": "No input given"})
+    for item in REQUIREMENTS:
+        if not data.get(item):
+            return jsonify({"error": f"{ item } not given"}), 404
+    user = get_user_by_key(data.get(session_key))
+    if not user:
+        return jsonify({"error":"Invalid session key"})
+    user.rotate_key()
+    if data.get("passcode") != hash_text(hash_text(SECRET_KEY)):
+        return jsonify({"error":"Invalid passcode"})
+    if not position_codes[position_name]:
+        return jsonify({"error": "Invalid position name"})
+    for role in available_positions:
+        print(f"Role: {role}")
+        if check_if_a_user_has_logged_in_with_a_role(role):
+            disabled_roles.append(role)
+    return jsonify({"session_key": hash_text(user.session_key), "position_code": position_codes[position_name], "diabled_roles": disabled_roles})    
+
+
+if __name__ == "__main__":
+    create_db()
+    app.run(debug=True)
+
+positions.js:
+import { forEach } from "mathjs";
+
+function makePosition(position_name, position_type, position_code ) {
+    return {
+        name: position_name,
+        type: position_type,
+        code: position_code
+    }
+} 
+
+export async function GetCodes(position, base='http://localhost:5000') {
+
+    const magicKeyRoute = '/api/user/getMagicKey';
+    const magicKeyConfig = {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: {
+            'session_key': localStorage.getItem('session')
+        }
+    }
+    const magicKeyResponse = await (await fetch(`${base}${magicKeyRoute}`, magicKeyConfig)).json();
+    const hashRoute = '/api/tools/getHashedValue';
+    const hashedKeyConfig = {
+        value: magicKeyResponse,
+    }
+    const codeRouteName = '/api/user/getUserCodes';
+    const codeRouteConfig = {
+        passcode: await (await fetch(`${base}${hashRoute}`, hashedKeyConfig)).json(),
+        session_key: localStorage.getItem('key'),
+        position_name: position
+    }
+    let isDisabled;
+    let theFinalResult = await (await fetch(`${base}${codeRouteName}`, codeRouteConfig)).json();
+    localStorage.setItem('key', theFinalResult.session_key);
+    if (theFinalResult.disabled_roles && theFinalResult.diabled_roles.length && theFinalResult.disabled_roles.includes(position)) {
+       isDisabled = true; 
+    } else {
+        isDisabled = false;
+    }
+    return {code: theFinalResult.position_code, disabled: isDisabled}
+}
+
+
+
+export const position_types = {
+    admin: 'ADMIN',
+    edit: 'EDITING_EXECUTIVE',
+    nonEdit: 'NON_EDITING_EXECUTIVE',
+    member: 'MEMBER',
+    guest: 'GUEST,'
+}
+export const position_names = {
+    president: 'President',
+    vicePresident: 'Vice President',
+    commandant: 'Parade Commandant',
+    assistantCommandant: 'Assistant Commandant',
+    secretary: 'General Secreatary',
+    assistantSecretary: 'Assistant General Secretary',
+    socialDirector: 'Social Director',
+    technicalDirector: 'Technical Director',
+    assistantTechnicalDirector: 'Assistant Technical Director',
+    assistantSocialDirector: 'Assistant Social Director',
+    financialOfficer: 'Financial Officer',
+    assistantFinancialOfficer: 'Assistant Financial Officer',
+    pro_1: 'Public Relations Officer 1',
+    pro_2: 'Public Relations Officer 2',
+    pro_3: 'Public Relations Officer 3',
+    pro_4: 'Public Relations Officer 4',
+    pro_5: 'Public Relations Officer 5',
+    outgoneAdvisor1: 'Intemediary to Seniors 1',
+    outgoneAdvisor2: 'Intemediary to Seniors 2',
+}
+export const position_codes = {
+    president: 'A1K9-M3T6-Q2V8',
+    vicePresident: 'D4F7-L1P9-C8J2',
+    commandant: 'M5B2-H8N1-K3Q7',
+    assistantCommandant: 'E3X7-V1Q4-K6J8',
+    secretary: 'R6P4-T2J9-L1C8',
+    assistantSecretary: 'K5J1-P7M4-L8V2',
+    socialDirector: 'V9K1-Q3M7-P5B2',
+    technicalDirector: 'C2H6-F9L4-N3V8',
+    assistantTechnicalDirector: 'J7M1-R8T5-K2P6',
+    assistantSocialDirector: 'L4N3-B5Q9-H1V7',
+    financialOfficer: 'W7U0-R5Z2-K9B8',
+    assistantFinancialOfficer: 'X6V8-G7Q2-M5M1',
+    pro_1: 'P8C2-K6M4-T1J9',
+    pro_2: 'N8B4-J6M2-V3P5',
+    pro_3: 'L3V7-H5C2-K9T1',
+    pro_4: 'J1F6-P9R3-Q4M8',
+    pro_5: 'T4M8-L2K5-B7F1',
+    outgoneAdvisor1: 'V2C9-H6Q3-N1R7',
+    outgoneAdvisor2: 'R9P2-M4L1-T5C3',
+}
+
+console.log("Position Names type", typeof(position_names));
+let codes = {};
+
+const position_keys = position_names.keys;
+console.log("Position keys", position_keys);
+for (let i of position_keys) {
+    codes.i = await GetCodes();
+}
+// Red Cross Positions in Order of Hierachy, PROs, though of a lower rank, possess editing allowance due to the nature of their work
+export const positions = [
+    makePosition(position_names.president, position_types.admin, position_codes.president),
+    makePosition(position_names.vicePresident, position_types.edit, position_codes.vicePresident),
+    makePosition(position_names.commandant, position_types.edit, position_codes.commandant),
+    makePosition(position_names.secretary, position_types.edit, position_codes.secretary),
+    makePosition(position_names.financialOfficer, position_types.financialOfficer, position_codes.financialOfficer),
+    makePosition(position_names.technicalDirector, position_types.nonEdit, position_codes.technicalDirector),
+    makePosition(position_names.socialDirector, position_types.nonEdit, position_codes.socialDirector),
+    makePosition(position_names.assistantCommandant, position_types.nonEdit, position_codes.assistantCommandant),
+    makePosition(position_names.assistantSecretary, position_types.nonEdit, position_codes.assistantSecretary),
+    makePosition(position_names.assistantFinancialOfficer, position_types.nonEdit, position_codes.assistantFinancialOfficer),
+    makePosition(position_names.assistantTechnicalDirector, position_types.nonEdit, position_codes.assistantTechnicalDirector),
+    makePosition(position_names.assistantSocialDirector, position_types.nonEdit, position_codes.assistantSocialDirector),
+    makePosition(position_names.pro_1, position_types.edit, position_codes.pro_1),
+    makePosition(position_names.pro_2, position_types.edit, position_codes.pro_2),
+    makePosition(position_names.pro_3, position_types.edit, position_codes.pro_3),
+    makePosition(position_names.pro_4, position_types.edit, position_codes.pro_4),
+    makePosition(position_names.pro_5, position_types.edit, position_codes.pro_5),
+    makePosition(position_names.outgoneAdvisor1, position_types.edit, position_codes.outgoneAdvisor1),
+    makePosition(position_names.outgoneAdvisor2, position_types.edit, position_codes.outgoneAdvisor2),
+]
+executive_base.py:
+from ..user_model import RoleType
+
+position_types = {
+    'admin': RoleType.ADMIN,
+    'edit': RoleType.EDITING_EXEC,
+    'nonEdit': RoleType.NON_EDITOR_EXEC,
+    'member': RoleType.MEMBER,
+    'guest': RoleType.GUEST
+}   
+position_codes = {
+    'president': 'A1K9-M3T6-Q2V8',
+    'vicePresident': 'D4F7-L1P9-C8J2',
+    'commandant': 'M5B2-H8N1-K3Q7',
+    'assistantCommandant': 'E3X7-V1Q4-K6J8',
+    'secretary': 'R6P4-T2J9-L1C8',
+    'assistantSecretary': 'K5J1-P7M4-L8V2',
+    'socialDirector': 'V9K1-Q3M7-P5B2',
+    'technicalDirector': 'C2H6-F9L4-N3V8',
+    'assistantTechnicalDirector': 'J7M1-R8T5-K2P6',
+    'assistantSocialDirector': 'L4N3-B5Q9-H1V7',
+    'financialOfficer': 'W7U0-R5Z2-K9B8',
+    'assistantFinancialOfficer': 'X6V8-G7Q2-M5M1',
+    'pro_1': 'P8C2-K6M4-T1J9',
+    'pro_2': 'N8B4-J6M2-V3P5',
+    'pro_3': 'L3V7-H5C2-K9T1',
+    'pro_4': 'J1F6-P9R3-Q4M8',
+    'pro_5': 'T4M8-L2K5-B7F1',
+    'outgoneAdvisor1': 'V2C9-H6Q3-N1R7',
+    'outgoneAdvisor2': 'R9P2-M4L1-T5C3',
+}
+TheWelcome.vue:
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useUserStore } from '../stores/counter.js';
+import { useApiStore } from '../stores/counter.js';
+
+
+
+const apiStore = useApiStore();
+const userStore = useUserStore();
+const name = ref(null)
+const role = ref(null);
+const color = ref(null);
+
+  
+async function getUsername() {
+  console.log("Finding the user's name now...");
+  const detailsRoute = '/api/user/getUserDetails';
+  const data = await (await apiStore.apiFetch(detailsRoute, 'POST', {})).json();
+  return data;
+}
+onMounted(async () => {
+  if (!userStore.getUserIsRegistered()) return;
+  const data = getUsername();
+  const values = {
+    name: data.name,
+    role: role_type
+  }
+  name.value = values.name;
+  role.value = values.role;
+  const colour_map = {
+    'member': 'teal',
+    'non_editor_exec': 'purple',
+    'editing_exec': 'blue',
+    'admin': 'red'
+  }
+  color.value = colour_map[role.value];
+
+})
+</script>
+
+<template>
+  <section v-if="userStore.getUserIsRegistered" class="user-controls">
+    <div class="user-icon" :style="{background: color}">
+
+    </div>
+  </section>
+  <section class="welcome">
+    <div class="welcome-card">
+      <h1 class="welcome-title">
+        Welcome to the OAUIS Red Cross Society
+      </h1>
+
+      <p class="welcome-subtitle">
+        Nigerian Red Cross Society <br />
+        Obafemi Awolowo University International School, Ile-Ife
+      </p>
+
+      <div class="welcome-divider"></div>
+
+      <div class="welcome-content">
+        <p>
+          We are part of the Nigerian Red Cross Society, committed to
+          humanitarian service, compassion, and the protection of human life
+          and dignity.
+        </p>
+
+        <p>
+          At OAUIS, our Red Cross Society empowers students to serve their
+          community through first aid, health awareness, emergency response,
+          and volunteerism.
+        </p>
+
+        <p>
+          This platform is designed to keep members informed, connected, and
+          actively involved in our activities, trainings, and outreach
+          programs.
+        </p>
+        <p>
+          So now you know, we're not just some high school club. We're an organization that steps in to help because it counts. We're a family that cares. 
+        </p>
+        <p><RouterLink to="/register"><button class="cta">Join Us</button></RouterLink></p>
+      </div>
+
+      <div class="welcome-motto">
+        <span>Humanity</span>
+        <span>•</span>
+        <span>Service</span>
+        <span>•</span>
+        <span>Compassion</span>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+/* ROOT */
+:root {
+  --adminBackground: red;
+  --editingExecBackground: blue;
+  --nonEditingExecBackground: purple;
+  --memberBackground: teal;
+  --circleRadius: 50px;
+}
+/* PAGE BACKGROUND */
+.welcome {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #ffffff;
+  padding: 2rem 1rem;
+}
+
+/* CARD */
+.welcome-card {
+  max-width: 850px;
+  background: #fdfdfd;
+  border-radius: 12px;
+  padding: 3rem 2.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+/* TITLE */
+.welcome-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #c8102e; /* Red Cross Red */
+  margin-bottom: 0.5rem;
+}
+
+/* SUBTITLE */
+.welcome-subtitle {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+/* DIVIDER */
+.welcome-divider {
+  width: 80px;
+  height: 4px;
+  background: #c8102e;
+  margin: 1.5rem auto;
+  border-radius: 2px;
+}
+
+/* CONTENT */
+.welcome-content p {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+/* MOTTO */
+.welcome-motto {
+  margin-top: 2rem;
+  font-weight: 600;
+  color: #c8102e;
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+/* CALL TO ACTION */
+.cta {
+  background: white;
+  color: #c8102e !important;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+</style>
+
+services.py:
+from ..user_model import User, db, RoleType, create_db
+import secrets
+from ...security import reversible_dehasher
+from ....local_storage import localStorage as LOCAL_STORAGE
+
+localStorage = LOCAL_STORAGE()
+SECRET_KEY = localStorage.getItem('ORC')
+# sprint(SECRET_KEY)
+def create_anonymous_user():
+    user = User(  
+        session_key=secrets.token_hex(32)
+    )
+    db.session.add(user)
+    db.session.commit()
+    return user 
+def get_user_by_key(session_key):
+    try:
+        print("Trying in case key is hashed")
+        user = User.query.filter_by(session_key=reversible_dehasher(session_key, SECRET_KEY),is_active=True).first()
+        return user
+    except Exception as e:
+        print(f"It appears something went wrong: {e}")
+        try:
+            print("Checking to see if the user hasn't hashed their key")
+            user = User.query.filter_by(session_key=session_key,is_active=True).first()
+            return user
+        except Exception as e:
+            print(f"It seems there's an error: {e}")
+            return None
+def get_user_from_key(session_key):
+    return get_user_by_key(session_key)
+def rotate_and_commit(user: User):
+    user.rotate_key()
+    db.session.commit()
+    return user.session_key
+
+def register_user(user: User, name, school_class):
+    user.name = name
+    user.school_class = school_class
+    user.role_type = RoleType.MEMBER
+    user.rotate_key()
+    db.session.commit()
+
+def assign_role(president, target_user, role_type, role_title=None):
+    if president.role_type != RoleType.ADMIN:
+        raise PermissionError("Only President/Admin can assign roles")
+
+    target_user.role_type = role_type
+    target_user.role_title = role_title
+    db.session.commit()
+
+def resign_role(user: User):
+    if user.role_type == RoleType.ADMIN:
+        raise PermissionError("The President cannot resign unless they appoint another person to take their place.")
+    user.role_type = RoleType.MEMBER
+    user.role_title = None
+    user.rotate_key()
+    db.session.commit()
+
+def logout_user(user):
+    user.session_key = None
+    user.is_active = False
+    db.session.commit()
+
+def get_total_user_count():
+    return db.session.query(User).count()
+
+def check_user_registered_from_session_key(hashed_session_key, secret_key):
+    user = get_user_from_key(reversible_dehasher(hashed_session_key, secret_key))
+    if not user:
+        print("User not found")
+        return False
+    if user.role_type == RoleType.GUEST:
+        print("User is a guest")
+        return False
+    else:
+        print("User is a member")
+        return True
+def check_user_registered_from_user(user: User, secret_key):
+    return check_user_registered_from_session_key(user.session_key, secret_key)
+
+def get_user_role_from_user(user: User):
+    return user.role_type
+
+def get_user_role_from_raw_session_key(session_key):
+    return get_user_role_from_user(get_user_by_key(session_key))
+
+def get_user_role_from_hashed_session_key(session_key):
+    return get_user_role_from_raw_session_key(reversible_hasher(session_key))
+
+def check_if_a_user_has_logged_in_with_a_role(given_role_title):
+    answer = User.query.filter_by(role_title=given_role_title,is_active=True).first()
+    if answer:
+        return True
+    return False
+Propose the problems and their solutions before proceeding to code them. I am wary of chatbots because they don't explain much, and often have bugs themselves. Think carefully.

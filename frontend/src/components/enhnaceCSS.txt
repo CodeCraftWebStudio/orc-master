@@ -1,0 +1,166 @@
+Enhance the CSS of the following files: 
+<script setup>
+import ChatSidebar from '@/components/ChatSidebar.vue'
+import ChatWindow from '@/components/ChatWindow.vue'
+import { ref, onMounted } from 'vue'
+import { useApiStore } from '../stores/counter.js'
+
+const apiStore = useApiStore();
+async function getUsername() {
+  console.log("Finding the user's name now...");
+  const detailsRoute = '/api/user/getUserDetails';
+  const data = await  apiStore.apiFetch(detailsRoute, 'POST', {});
+  return data;
+}
+const userId = ref(null);   // replace with real logged-in user id
+const user_role = ref(null);
+const showChat = ref(true);
+
+onMounted(async() => {
+    const user = await getUsername();
+    userId.value = user.id;
+    user_role.value = user.role_type.toLowerCase();
+})
+</script>
+
+<template>
+  <div class="flex h-screen" v-if="user_role !== 'guest'">
+    <ChatSidebar @openChat="showChat = true" />
+    <ChatWindow v-if="showChat" :userId="userId" />
+  </div>
+  <div v-else class="flex h-screen w-screen">
+    <p class="text-red-700 text-5xl justify-center align-center"> It appears that you haven't registered. Only members of the ORC can see ORC chats.</p>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useApiStore } from '@/stores/counter'
+
+const props = defineProps(['userId'])
+const api = useApiStore()
+
+const messages = ref([])
+const newMessage = ref('')
+const roomId = ref(null)
+const unreadCount = ref(0)
+const typingUsers = ref([])
+
+let interval = null
+
+async function loadRoom() {
+  const res = await api.apiFetch('/api/chat/getRoom')
+  roomId.value = res.room_id
+}
+
+async function loadMessages() {
+  const data = await api.apiFetch(`/api/chat/getMessages/${roomId.value}`)
+  
+  if (messages.value.length) {
+    unreadCount.value = data.length - messages.value.length
+  }
+
+  messages.value = data
+}
+
+async function sendMessage() {
+  if (!newMessage.value) return
+
+  // await api.apiPost('/chat/send', {
+  //   content: newMessage.value,
+  //   user_id: props.userId,
+  //   room_id: roomId.value
+  // })
+  await api.apiFetch('/api/chat/send', 'POST', {
+    content: newMessage.value,
+    user_id: props.userId,
+    room_id: roomId.value
+  })
+
+  newMessage.value = ''
+  await loadMessages()
+}
+
+async function sendTyping(state) {
+  // await api.apiPost('chat/typing', {
+  //   user_id: props.userId,
+  //   typing: state
+  // })
+  await api.apiFetch('/api/chat/typing', 'POST', {
+    user_id: props.userId,
+    typing: state,
+  })
+}
+
+async function loadTyping() {
+  typingUsers.value = await api.apiFetch('/chat/typing')
+}
+
+onMounted(async () => {
+  await loadRoom()
+  await loadMessages()
+
+  interval = setInterval(() => {
+    loadMessages()
+    loadTyping()
+  }, 2000)
+})
+
+onUnmounted(() => clearInterval(interval))
+</script>
+
+<template>
+  <div class="flex flex-col h-full p-4">
+    <div class="flex-1 overflow-y-auto">
+      <div v-for="msg in messages" :key="msg.id">
+        <strong>{{ msg.username }}:</strong>
+        {{ msg.content }}
+        <small>({{ msg.status }})</small>
+      </div>
+    </div>
+
+    <div v-if="typingUsers.length">
+      Someone is typing...
+    </div>
+
+    <div v-if="unreadCount > 0">
+      {{ unreadCount }} new messages
+    </div>
+
+    <input 
+      v-model="newMessage"
+      @input="sendTyping(true)"
+      @blur="sendTyping(false)"
+      placeholder="Type message..."
+    />
+    <button @click="sendMessage">Send</button>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useApiStore } from '@/stores/counter'
+
+const contacts = ref([])
+const api = useApiStore()
+const emit = defineEmits(['openChat'])
+
+onMounted(async () => {
+  contacts.value = await api.apiFetch('/api/chat/getUsers')
+})
+
+function openChat() {
+  emit('openChat')
+}
+</script>
+
+<template>
+  <aside class="bg-gray-100 p-10 w-auto rounded-xl text-blue-500 text-3xl">
+    <p class="text-2xl text-black p-4"> Contact List</p>
+    <div v-for="contact in contacts" :key="contact.id">
+      <button class="hover:cursor-pointer" @click="openChat">
+        {{ contact.username }}
+      </button>
+    </div>
+  </aside>
+</template>
