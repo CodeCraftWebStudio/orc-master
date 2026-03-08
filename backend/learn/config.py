@@ -9,7 +9,7 @@
 # def generate_quiz(difficulty, text):
 #     response = client.models.generate_content(model=MODEL, contents=generate_prompt(difficulty=difficulty, text=text))
 #     return response
-from google import genai
+import google.generativeai as genai
 from .schema import QuizOutput
 import os
 
@@ -18,7 +18,8 @@ MODEL = "gemini-2.5-flash-lite"  # or another supported model
 # genai.configure(api_key=API_KEY)
 client = genai.Client(api_key=API_KEY)
 
-def generate_quiz(difficulty, text): 
+
+def generate_quiz(difficulty, text):
     prompt = generate_prompt(difficulty, text)
 
     response = client.models.generate_content(
