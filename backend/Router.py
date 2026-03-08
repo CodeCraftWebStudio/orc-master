@@ -98,7 +98,7 @@ def get_total_members():
 
 @app.route('/api/user/getIsUserRegistered', methods=["POST"])
 def get_user_registered():
-    data = request.get_json()
+    data = request.get_json() or {}
     session_key = data.get("session_key")
     if not session_key:
         return jsonify({"error": "Session key not given"}), 400
@@ -166,7 +166,7 @@ def generateQuizQuestions():
 
 @app.route('/api/user/getUserDetails', methods=["POST"])
 def get_user_details():
-    data = request.get_json()
+    data = request.get_json() or {}
     session_key = data.get("session_key")
     if not session_key:
         return jsonify({"error": "No session key provided"}), 400
