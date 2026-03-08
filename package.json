@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@sanity/asset-utils": "^2.3.0"
+  }
+}
