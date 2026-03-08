@@ -4,6 +4,7 @@
 #   NOTE THAT THE USER ROTATION SHOULD ALWAYS COME AFTER ERROR CHECKS, NEVER BEFORE, TO PREVENT BROKEN REQUESTS
 #   AND SESSION KEYS
 ###################################################################################################################
+from flask import Flask
 from .models.model_base.events_model import CalendarEvent
 from backend.models.model_base.user_services.services import (
     check_if_a_user_has_logged_in_with_a_role,
@@ -43,6 +44,8 @@ from backend.chatroom.Services.professional import SYSTEM_INSTRUCTIONS
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from backend.models.secret_key_generator import api
 import google.generativeai as genai
+
+app = Flask(__name__)
 
 # -------------------------------
 # Configuration
@@ -437,6 +440,11 @@ def stream_raw_prompt():
     data = request.json or {}
     user_prompt = data.get("prompt", "")
     return Response(stream_with_context(gemini_stream(user_prompt)), mimetype="text/event-stream")
+
+
+@app.route("/")
+def home():
+    return "Backend is running! Visit the API endpoints."
 
 
 # -------------------------------
