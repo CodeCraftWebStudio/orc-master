@@ -49,7 +49,12 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-CORS(app)
+CORS(
+    app,
+    supports_credentials=True,
+    resources={
+        r"/*": {"origins": "https://boisterous-alfajores-6bcd79.netlify.app"}}
+)
 
 # -------------------------------
 # Configuration
