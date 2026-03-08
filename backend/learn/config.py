@@ -13,7 +13,7 @@ import google.generativeai as genai
 from .schema import QuizOutput
 import os
 
-API_KEY = os.environ["GEMINI_API_KEY"]
+API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = "gemini-2.5-flash-lite"  # or another supported model
 # genai.configure(api_key=API_KEY)
 client = genai.Client(api_key=API_KEY)
