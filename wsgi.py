@@ -1,4 +1,4 @@
 from backend.Router import app
 
-# Render / Gunicorn needs this variable
-application = app
+if __name__ == "__main__":
+    app.run()
