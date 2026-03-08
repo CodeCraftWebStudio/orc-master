@@ -101,7 +101,7 @@ def get_user_registered():
     data = request.get_json() or {}
     session_key = data.get("session_key")
     if not session_key:
-        return jsonify({"error": "Session key not given"}), 400
+        return jsonify({"result": "f"})
     user = get_user_by_key(session_key)
     if user and user.name not in ["Anonymous", "Unassigned"] and user.role_type != RoleType.GUEST:
         return jsonify({"result": "t"})
@@ -169,7 +169,7 @@ def get_user_details():
     data = request.get_json() or {}
     session_key = data.get("session_key")
     if not session_key:
-        return jsonify({"error": "No session key provided"}), 400
+        return jsonify({"error": "No session key"}), 401
     user = get_user_by_key(session_key)
     if not user:
         return jsonify({"error": "Invalid session key"}), 401
