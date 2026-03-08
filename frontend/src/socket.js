@@ -1,11 +1,9 @@
-import { io } from "socket.io-client"
+import { io } from "socket.io-client";
 
-
-
-const URL =  'http://localhost:5000';
+const URL = "https://orc-backend.onrender.com/";
 
 const socket = io(URL, {
-  withCredentials: true
-})
+  withCredentials: true,
+});
 
-export default socket
+export default socket;
