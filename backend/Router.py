@@ -47,7 +47,6 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from backend.models.secret_key_generator import api
 import google.generativeai as genai
 
-app = Flask(__name__)
 
 CORS(
     app,
