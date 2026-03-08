@@ -8,8 +8,11 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "connect_args": {"check_same_thread": False}
 }
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+db = SQLAlchemy()
+migrate = Migrate()
+
+db.init_app(app)
+migrate.init_app(app, db)
 
 
 class RoleType:
