@@ -593,7 +593,7 @@ from backend.learn.config import generate_quiz
 from datetime import datetime
 
 
-LOCAL_STORAGE = localStorage()
+LOCAL_STORAGE = localStorage
 GET, POST, UPDATE, DELETE = "GET", "POST", "UPDATE", "DELETE"
 SECRET_KEY = LOCAL_STORAGE.getItem('ORC')
 

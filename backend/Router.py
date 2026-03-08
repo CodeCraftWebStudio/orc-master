@@ -47,7 +47,7 @@ import google.generativeai as genai
 # -------------------------------
 # Configuration
 # -------------------------------
-LOCAL_STORAGE = localStorage()
+LOCAL_STORAGE = localStorage
 GET, POST, UPDATE, DELETE = "GET", "POST", "UPDATE", "DELETE"
 SECRET_KEY = LOCAL_STORAGE.getItem('ORC')
 socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
