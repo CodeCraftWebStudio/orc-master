@@ -8,7 +8,7 @@ from ..events_model import CalendarEvent
 from datetime import datetime
 from ....error_messages.errors import *
 from ....chatroom.Models.models import Room as Contact
-localStorage = LOCAL_STORAGE()
+localStorage = LOCAL_STORAGE
 SECRET_KEY = os.environ.get("ORC", "dev-secret-key")
 # sprint(SECRET_KEY)
 
