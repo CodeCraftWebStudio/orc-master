@@ -1,12 +1,4 @@
-import os
-from backend.Router import app, socketio
-from backend.models.model_base.general_base import create_db
+from backend.Router import app
 
-create_db()
-
-
+# Render / Gunicorn needs this variable
 application = app
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    socketio.run(app, host="0.0.0.0", port=port)
