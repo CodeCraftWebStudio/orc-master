@@ -4,7 +4,9 @@
 #   NOTE THAT THE USER ROTATION SHOULD ALWAYS COME AFTER ERROR CHECKS, NEVER BEFORE, TO PREVENT BROKEN REQUESTS
 #   AND SESSION KEYS
 ###################################################################################################################
+
 from flask import Flask
+from flask_cors import CORS
 from .models.model_base.events_model import CalendarEvent
 from backend.models.model_base.user_services.services import (
     check_if_a_user_has_logged_in_with_a_role,
@@ -46,6 +48,8 @@ from backend.models.secret_key_generator import api
 import google.generativeai as genai
 
 app = Flask(__name__)
+
+CORS(app)
 
 # -------------------------------
 # Configuration
