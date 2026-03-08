@@ -1,9 +1,10 @@
 from flask import jsonify, make_response, request
-from ..models.model_base.user_services.services import get_user_by_key
-from functools import wraps 
+from functools import wraps
 
 
 def session_key_required(f):
+    from ..models.model_base.user_services.services import get_user_by_key
+
     @wraps(f)
     def decorated(*args, **kwargs):
         print("Checking Authorization using header method")
@@ -14,11 +15,11 @@ def session_key_required(f):
             token = data.get("session_key")  # Use .get() to avoid KeyError
             if not token:
                 return jsonify({'message': 'Token is missing!'}), 401
-        
+
         current_user = get_user_by_key(token.replace("Bearer ", ""))
         if not current_user:
             return jsonify({'message': 'Token is invalid!'}), 401
-        
+
         return f(*args, **kwargs)  # Actually call the wrapped function
     return decorated
 
@@ -31,11 +32,11 @@ def ensure_requirements(requirements: list):
             data = request.get_json()
             if not data:
                 return NotFoundError("No JSON body provided").to_response()
-            
+
             for item in requirements:
                 if item not in data or not data[item]:
                     return NotFoundError(f'{item} not found in POST request').to_response()
-            
+
             return f(*args, **kwargs)
         return decorated
     return decorator
