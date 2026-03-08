@@ -171,8 +171,9 @@ def get_user_details():
     if not session_key:
         return jsonify({"error": "No session key"}), 401
     user = get_user_by_key(session_key)
+
     if not user:
-        return jsonify({"error": "Invalid session key"}), 401
+        user = create_anonymous_user()
     return jsonify({
         'name': user.name,
         'school_class': user.school_class,
