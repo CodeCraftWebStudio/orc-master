@@ -96,7 +96,7 @@ def get_total_members():
     return jsonify(get_total_user_count())
 
 
-@app.route('/api/user/getIsUserRegistered', methods=[POST])
+@app.route('/api/user/getIsUserRegistered', methods=["POST"])
 def get_user_registered():
     data = request.get_json()
     session_key = data.get("session_key")
@@ -164,7 +164,7 @@ def generateQuizQuestions():
     return jsonify({"result": quiz_json, "session_key": reversible_hasher(user.session_key, SECRET_KEY)})
 
 
-@app.route('/api/user/getUserDetails', methods=[POST])
+@app.route('/api/user/getUserDetails', methods=["POST"])
 def get_user_details():
     data = request.get_json()
     session_key = data.get("session_key")
