@@ -10,7 +10,7 @@ function makePosition(position_name, position_type, position_code) {
 
 export async function GetCodes(
   position,
-  base = "https://orc-backend.onrender.com/",
+  base = "https://orc-backend.onrender.com",
 ) {
   const magicKeyRoute = "/api/user/getMagicKey";
   const magicKeyConfig = {

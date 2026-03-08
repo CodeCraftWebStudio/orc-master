@@ -4,7 +4,7 @@ import { ref } from "vue";
 /* =========================
    Constants
 ========================= */
-const BASE_URL = "https://orc-backend.onrender.com/";
+const BASE_URL = "https://orc-backend.onrender.com";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const CREDENTIALS = "include";
 const ALLOWED_METHODS = ["GET", "POST", "PUT", "DELETE"];
