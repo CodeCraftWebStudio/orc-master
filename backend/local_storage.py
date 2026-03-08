@@ -1,35 +1,24 @@
 import shelve
+import os
 
-class localStorage:
-    def __init__(self, filename="local_storage"):
-        self.filename = filename  # the file that acts like storage
-        self.passkey = self.filename + "4$jduy9y93yhsi03yg_3g9s-+jsehu%=azbajahisols223#ihihdihdsj@ihihsi!hgkshiheljhdroruh^"
+
+class LocalStorage:
+    def __init__(self, filename="local_storage.db"):
+        # Ensure file path works on Render
+        self.filename = os.path.join(os.getcwd(), filename)
+
     def setItem(self, key, value):
-        with shelve.open(self.filename) as db:
-            db[key] = value
+        with shelve.open(self.filename, flag="c") as db:
+            db[str(key)] = value
 
     def getItem(self, key):
-        with shelve.open(self.filename) as db:
-            return db.get(key, None)  # return None if not found
+        with shelve.open(self.filename, flag="c") as db:
+            return db.get(str(key))
 
     def removeItem(self, key):
-        with shelve.open(self.filename) as db:
-            if key in db:
-                del db[key]
+        with shelve.open(self.filename, flag="c") as db:
+            if str(key) in db:
+                del db[str(key)]
 
-    def clear(self):
-        with shelve.open(self.filename) as db:
-            db.clear()
-    def generate(self, name, value):
-        with shelve.open(self.filename) as db:
-            if name in db:               
-                return db.get(name, value)
-            else:
-                db[name] = value
-    def getAll(self, passkey):
-        if passkey == self.passkey:
-            with shelve.open(self.filename) as db:
-                return db
-        else:
-            return "Invalid password for the file"
 
+LOCAL_STORAGE = LocalStorage()
