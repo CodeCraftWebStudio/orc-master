@@ -109,7 +109,7 @@ def get_user_registered():
 
 
 @ensure_requirements(requirements=["session_key", "name", "school_class"])
-@app.route('/api/user/registerUser', methods=[POST])
+@app.route('/user/registerUser', methods=[POST])
 def register_user_as_a_member():
     data = request.get_json()
     user = get_user_by_key(reversible_dehasher(
